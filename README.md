@@ -86,17 +86,6 @@ The lexer/parser and rules follow the Google SecOps YARA-L 2.0 documentation:
 - All documented comparison forms lex correctly, per the [overview examples](https://cloud.google.com/chronicle/docs/detection/yara-l-2-0-overview): regex literals with `nocase` (`$host = /.*HoSt.*/ nocase`), backtick raw strings in `re.regex(...)`, and `in cidr` / `in regex` reference-list operators (`$e.principal.ip in cidr %internal_ranges`).
 - Composite detection rules use the same structure and syntax as multi-event rules, so they lint with no special handling.
 
-## Dependency notes
-
-Dependencies are the newest releases as of August 2026: `spf13/cobra` v1.10.2, `fatih/color` v1.19.0 (requires Go ≥ 1.25), and `go.yaml.in/yaml/v3` v3.0.5. The gopkg.in/yaml.v3 project was archived; stewardship moved to the YAML org, which publishes the same package under the `go.yaml.in/yaml/v3` import path — cobra itself has migrated to it, so this project uses a single, current YAML implementation.
-
-`go.mod` contains two workarounds for network-restricted build environments; both are inert on a normal network and removable:
-
-- `replace golang.org/x/sys => github.com/golang/sys v0.47.0` — the canonical GitHub mirror of the same module.
-- `replace go.yaml.in/yaml/v3 => ./third_party/yaml` — an unmodified copy of the v3.0.5 release (license included; tests and their test-only dependency stripped from its `go.mod`).
-
-On an unrestricted network you can delete both replace lines and the `third_party/` directory, then run `go mod tidy`.
-
 ## Test fixtures
 
 `testdata/` contains five rules exercising each check: `good.yaral` (clean), `bad_meta.yaral` (YL002), `bad_syntax.yaral` (YL001, including the `conditon:` typo and a missing `}`), `bad_structure.yaral` (YL001 missing required `condition:` section), and `bad_vars.yaral` (YL003 in both directions).
