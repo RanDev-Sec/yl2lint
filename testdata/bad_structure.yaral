@@ -1,0 +1,10 @@
+// A rule that Google SecOps would reject: no condition section.
+rule missing_condition_section {
+  meta:
+    author = "secops-team"
+    description = "Rule without the required condition section"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+}

@@ -1,0 +1,23 @@
+// Detects an excessive number of blocked console logins for a single user.
+rule excessive_failed_logins {
+
+  meta:
+    author = "secops-team"
+    description = "Multiple blocked logins for one user within 15 minutes"
+    severity = "HIGH"
+
+  events:
+    $login.metadata.event_type = "USER_LOGIN"
+    $login.security_result.action = "BLOCK"
+    $login.principal.user.userid = $user
+    $login.principal.user.userid = /adm.n/ nocase
+
+  match:
+    $user over 15m
+
+  outcome:
+    $risk_score = max(if($login.metadata.vendor_name = "Acme", 90, 60))
+
+  condition:
+    $login and #login > 5
+}

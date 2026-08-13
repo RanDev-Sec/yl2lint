@@ -1,0 +1,19 @@
+# yl2lint policy configuration.
+# Delete this file to fall back to built-in defaults
+# (required meta keys: author, description, severity).
+
+meta:
+  # Every rule's meta block must contain all of these keys (YL002).
+  required_keys:
+    - author
+    - description
+    - severity
+
+# Disable rules by name or ID (case-insensitive), e.g.:
+#   - variable-lifecycle
+#   - YL002
+disabled_rules: []
+
+# Override default severities per rule (info | warning | error), e.g.:
+#   meta-required-keys: warning
+severities: {}

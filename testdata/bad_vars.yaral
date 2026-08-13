@@ -1,0 +1,13 @@
+rule variable_lifecycle_problems {
+  meta:
+    author = "secops-team"
+    description = "Demonstrates variable lifecycle violations"
+    severity = "MEDIUM"
+
+  events:
+    $dns.metadata.event_type = "NETWORK_DNS"
+    $orphan.metadata.event_type = "PROCESS_LAUNCH"
+
+  condition:
+    $dns and $ghost
+}

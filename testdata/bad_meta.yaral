@@ -1,0 +1,10 @@
+rule missing_metadata {
+  meta:
+    author = "someone"
+
+  events:
+    $proc.metadata.event_type = "PROCESS_LAUNCH"
+
+  condition:
+    $proc
+}

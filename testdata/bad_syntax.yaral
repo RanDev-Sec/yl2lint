@@ -1,0 +1,11 @@
+rule broken_rule {
+  meta:
+    author = "someone"
+    description = "Misspelled section header and a missing closing brace"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+
+  conditon:
+    $e
