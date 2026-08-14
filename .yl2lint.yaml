@@ -5,10 +5,19 @@
 meta:
   # Every rule's meta block must contain all of these keys (YL002).
   required_keys:
+- description
+    - version
+    - created
     - author
-    - description
+    - contributor
+    - reference
+    - confidence
     - severity
-
+    - falsepositives
+    - status
+    - logsource
+    - tags
+    
 # Disable rules by name or ID (case-insensitive), e.g.:
 #   - variable-lifecycle
 #   - YL002
