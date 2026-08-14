@@ -137,6 +137,17 @@ func (e *Engine) LintSource(path string, src []byte) []Violation {
 		}
 	}
 
+	// Honour inline `yl2lint-disable` suppression comments.
+	if sup := buildSuppressions(file); len(sup) > 0 {
+		kept := vs[:0]
+		for _, v := range vs {
+			if !sup.covers(v) {
+				kept = append(kept, v)
+			}
+		}
+		vs = kept
+	}
+
 	sort.SliceStable(vs, func(i, j int) bool {
 		if vs[i].Pos.Line != vs[j].Pos.Line {
 			return vs[i].Pos.Line < vs[j].Pos.Line

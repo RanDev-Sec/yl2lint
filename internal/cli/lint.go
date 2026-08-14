@@ -15,6 +15,18 @@ import (
 	"yl2lint/internal/runner"
 )
 
+var (
+	flagFix         bool
+	flagInteractive bool
+)
+
+func init() {
+	lintCmd.Flags().BoolVar(&flagFix, "fix", false,
+		"automatically inject missing required meta keys (from .yl2lint.yaml) with TODO placeholders and write the file")
+	lintCmd.Flags().BoolVar(&flagInteractive, "interactive", false,
+		"like --fix, but ask before adding each missing meta field")
+}
+
 var lintCmd = &cobra.Command{
 	Use:   "lint <file.yaral | directory>",
 	Short: "Lint a YARA-L 2.0 file, or recursively lint every .yaral file in a directory",
@@ -30,6 +42,12 @@ func runLint(cmd *cobra.Command, args []string) error {
 	cfg, cfgFile, err := config.Load(flagConfig)
 	if err != nil {
 		return err
+	}
+
+	if flagFix || flagInteractive {
+		if err := autofixMeta(args[0], cfg); err != nil {
+			return err
+		}
 	}
 
 	eng := linter.NewEngine(cfg, rules.All())

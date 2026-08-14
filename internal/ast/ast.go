@@ -23,6 +23,8 @@ func PositionOf(t lexer.Token) Position {
 type File struct {
 	Path  string
 	Rules []*YaraLRule
+
+	Comments []lexer.Comment
 }
 
 // YaraLRule is one `rule name { ... }` block.

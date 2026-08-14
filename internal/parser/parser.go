@@ -37,13 +37,13 @@ type Parser struct {
 // encountered. The AST is always non-nil; badly broken input simply produces
 // a sparser tree plus more errors.
 func Parse(src []byte) (*ast.File, []ParseError) {
-	toks, lexErrs := lexer.Tokenize(src)
+	toks, comments, lexErrs := lexer.TokenizeWithComments(src)
 	p := &Parser{toks: toks}
 	for _, e := range lexErrs {
 		p.errs = append(p.errs, ParseError{Line: e.Line, Column: e.Column, Msg: e.Msg})
 	}
 
-	file := &ast.File{}
+	file := &ast.File{Comments: comments}
 	for !p.atEOF() {
 		if r := p.parseRule(); r != nil {
 			file.Rules = append(file.Rules, r)

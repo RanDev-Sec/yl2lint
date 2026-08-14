@@ -2,8 +2,10 @@
 // It is a hand-written byte scanner — no regular expressions are involved.
 package lexer
 
-import "fmt"
-
+import (
+	"fmt"
+	"strings"
+)
 // Lexer scans a byte slice into Tokens.
 type Lexer struct {
 	src  []byte
@@ -11,6 +13,8 @@ type Lexer struct {
 	line int
 	col  int
 	errs []Error
+
+	comments []Comment // captured side-channel, see Comment	
 
 	// prevType/prevLit track the last emitted token so `/` can be
 	// disambiguated: after `=`, `!=`, `(`, `,` or a keyword it opens a regex
@@ -27,9 +31,7 @@ func New(src []byte) *Lexer {
 // Errors returns lexical errors accumulated so far.
 func (l *Lexer) Errors() []Error { return l.errs }
 
-// Tokenize scans src to completion. The returned slice always ends with an
-// EOF token. Comments are consumed and never emitted.
-func Tokenize(src []byte) ([]Token, []Error) {
+func TokenizeWithComments(src []byte) ([]Token, []Comment, []Error) {
 	l := New(src)
 	var toks []Token
 	for {
@@ -39,7 +41,14 @@ func Tokenize(src []byte) ([]Token, []Error) {
 			break
 		}
 	}
-	return toks, l.errs
+	return toks, l.comments, l.errs
+}
+
+// Tokenize scans src to completion. The returned slice always ends with an
+// EOF token. Comments are consumed and never emitted as tokens.
+func Tokenize(src []byte) ([]Token, []Error) {
+	toks, _, errs := TokenizeWithComments(src)
+	return toks, errs
 }
 
 // Next returns the next token.
@@ -254,12 +263,21 @@ func (l *Lexer) skipSpaceAndComments() {
 		switch {
 		case c == ' ' || c == '\t' || c == '\r' || c == '\n':
 			l.advance()
+
 		case c == '/' && l.pos+1 < len(l.src) && l.src[l.pos+1] == '/':
-			for l.pos < len(l.src) && l.src[l.pos] != '\n' {
-				l.advance()
-			}
+			l.captureLineComment(2)
+
+		// `#` opens a count variable (#login) when followed by an identifier;
+		// followed by whitespace or end-of-line it is a line comment. This is
+		// what makes `# yl2lint-disable: <rule>` directives possible.
+		case c == '#' && (l.pos+1 >= len(l.src) ||
+			l.src[l.pos+1] == ' ' || l.src[l.pos+1] == '\t' ||
+			l.src[l.pos+1] == '\r' || l.src[l.pos+1] == '\n'):
+			l.captureLineComment(1)
+
 		case c == '/' && l.pos+1 < len(l.src) && l.src[l.pos+1] == '*':
 			line, col := l.line, l.col
+			start := l.pos
 			l.advance()
 			l.advance()
 			closed := false
@@ -275,10 +293,29 @@ func (l *Lexer) skipSpaceAndComments() {
 			if !closed {
 				l.errorf(line, col, "unterminated block comment")
 			}
+			text := string(l.src[start+2 : l.pos])
+			if closed {
+				text = strings.TrimSuffix(text, "*/")
+			}
+			l.comments = append(l.comments, Comment{
+				Text: strings.TrimSpace(text), Line: line, Column: col, EndLine: l.line,
+			})
 		default:
 			return
 		}
 	}
+}
+
+// captureLineComment consumes a line comment whose marker is markerLen bytes
+// long ("//" or "#") and records it.
+func (l *Lexer) captureLineComment(markerLen int) {
+	line, col := l.line, l.col
+	start := l.pos
+	for l.pos < len(l.src) && l.src[l.pos] != '\n' {
+		l.advance()
+	}
+	text := strings.TrimSpace(string(l.src[start+markerLen : l.pos]))
+	l.comments = append(l.comments, Comment{Text: text, Line: line, Column: col, EndLine: line})
 }
 
 func (l *Lexer) advance() {

@@ -86,3 +86,13 @@ var keywords = map[string]bool{
 	// `in regex` / `in cidr` reference-list comparison operators.
 	"regex": true, "cidr": true,
 }
+
+// Comment is a source comment captured while scanning. Comments never enter
+// the token stream; they are collected on the side so the linter can honour
+// inline suppression directives such as `// yl2lint-disable: udm-schema`.
+type Comment struct {
+	Text    string // content without the //, /* */ or # markers, trimmed
+	Line    int    // line the comment starts on
+	Column  int
+	EndLine int // last line covered (block comments may span lines)
+}
