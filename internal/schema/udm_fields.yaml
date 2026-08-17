@@ -1,0 +1,111 @@
+# Baseline UDM field dictionary. Regenerate from a CSV export with:
+#   go generate ./internal/schema
+# Users can extend or replace this via the `schema:` block in .yl2lint.yaml.
+prefixes:
+  - additional.fields
+  - about.labels
+  - metadata.tags
+
+fields:
+  # metadata
+  - {path: metadata.event_type,          type: enum}
+  - {path: metadata.event_timestamp,     type: timestamp}
+  - {path: metadata.collected_timestamp, type: timestamp}
+  - {path: metadata.product_name,        type: string}
+  - {path: metadata.vendor_name,         type: string}
+  - {path: metadata.product_event_type,  type: string}
+  - {path: metadata.product_log_id,      type: string}
+  - {path: metadata.description,         type: string}
+  - {path: metadata.id,                  type: string}
+  - {path: metadata.log_type,            type: string}
+
+  # principal
+  - {path: principal.hostname,                             type: string}
+  - {path: principal.asset_id,                             type: string}
+  - {path: principal.ip,                                   type: string, repeated: true}
+  - {path: principal.port,                                 type: int}
+  - {path: principal.mac,                                  type: string, repeated: true}
+  - {path: principal.user.userid,                          type: string}
+  - {path: principal.user.user_display_name,               type: string}
+  - {path: principal.user.windows_sid,                     type: string}
+  - {path: principal.user.email_addresses,                 type: string, repeated: true}
+  - {path: principal.user.employee_id,                     type: string}
+  - {path: principal.process.pid,                          type: int}
+  - {path: principal.process.command_line,                 type: string}
+  - {path: principal.process.file.full_path,               type: string}
+  - {path: principal.process.file.sha256,                  type: string}
+  - {path: principal.process.file.md5,                     type: string}
+  - {path: principal.process.parent_process.pid,           type: int}
+  - {path: principal.process.parent_process.command_line,  type: string}
+  - {path: principal.asset.asset_id,                       type: string}
+  - {path: principal.asset.hostname,                       type: string}
+  - {path: principal.location.country_or_region,           type: string}
+  - {path: principal.location.city,                        type: string}
+
+  # target
+  - {path: target.hostname,                  type: string}
+  - {path: target.asset_id,                  type: string}
+  - {path: target.ip,                        type: string, repeated: true}
+  - {path: target.port,                      type: int}
+  - {path: target.mac,                       type: string, repeated: true}
+  - {path: target.user.userid,               type: string}
+  - {path: target.user.user_display_name,    type: string}
+  - {path: target.user.email_addresses,      type: string, repeated: true}
+  - {path: target.user.windows_sid,          type: string}
+  - {path: target.process.pid,               type: int}
+  - {path: target.process.command_line,      type: string}
+  - {path: target.process.file.full_path,    type: string}
+  - {path: target.process.file.sha256,       type: string}
+  - {path: target.process.file.md5,          type: string}
+  - {path: target.file.full_path,            type: string}
+  - {path: target.file.sha256,               type: string}
+  - {path: target.file.md5,                  type: string}
+  - {path: target.file.size,                 type: int}
+  - {path: target.domain.name,               type: string}
+  - {path: target.url,                       type: string}
+  - {path: target.application,               type: string}
+  - {path: target.resource.name,             type: string}
+  - {path: target.resource.resource_type,    type: enum}
+  - {path: target.resource.resource_subtype, type: string}
+
+  # src / intermediary / observer
+  - {path: src.hostname,          type: string}
+  - {path: src.ip,                type: string, repeated: true}
+  - {path: src.port,              type: int}
+  - {path: intermediary.hostname, type: string}
+  - {path: intermediary.ip,       type: string, repeated: true}
+  - {path: observer.hostname,     type: string}
+  - {path: observer.ip,           type: string, repeated: true}
+
+  # network
+  - {path: network.application_protocol, type: enum}
+  - {path: network.direction,            type: enum}
+  - {path: network.ip_protocol,          type: enum}
+  - {path: network.session_id,           type: string}
+  - {path: network.sent_bytes,           type: int}
+  - {path: network.received_bytes,       type: int}
+  - {path: network.http.method,          type: string}
+  - {path: network.http.user_agent,      type: string}
+  - {path: network.http.response_code,   type: int}
+  - {path: network.http.referral_url,    type: string}
+  - {path: network.dns.questions.name,   type: string, repeated: true}
+  - {path: network.dns.answers.data,     type: string, repeated: true}
+  - {path: network.email.from,           type: string}
+  - {path: network.email.to,             type: string, repeated: true}
+  - {path: network.email.subject,        type: string}
+
+  # security_result (the security_result message itself is repeated)
+  - {path: security_result.action,                 type: enum,   repeated: true}
+  - {path: security_result.severity,               type: enum,   repeated: true}
+  - {path: security_result.rule_name,              type: string, repeated: true}
+  - {path: security_result.summary,                type: string, repeated: true}
+  - {path: security_result.description,            type: string, repeated: true}
+  - {path: security_result.category,               type: enum,   repeated: true}
+  - {path: security_result.category_details,       type: string, repeated: true}
+  - {path: security_result.detection_fields.value, type: string, repeated: true}
+
+  # about (repeated entity annotations)
+  - {path: about.hostname,    type: string, repeated: true}
+  - {path: about.ip,          type: string, repeated: true}
+  - {path: about.file.sha256, type: string, repeated: true}
+  - {path: about.user.userid, type: string, repeated: true}

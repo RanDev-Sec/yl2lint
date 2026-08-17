@@ -269,22 +269,62 @@ func groupStatements(body []lexer.Token) []ast.Statement {
 	return stmts
 }
 
+// splitLines groups a section body into logical statements rather than
+// physical lines. A statement continues across a line break while any
+// parenthesis or bracket is still open, or when the break sits next to a
+// token that cannot end or begin a statement: a trailing comma, operator,
+// dot, or binary keyword, or a leading one. This is what lets YL006 and the
+// field extractors see a re.regex(...) call or an if(...) outcome split over
+// several lines as a single statement.
 func splitLines(body []lexer.Token) [][]lexer.Token {
 	var lines [][]lexer.Token
 	var cur []lexer.Token
+	depth := 0
 	lastLine := -1
 	for _, t := range body {
-		if t.Line != lastLine && len(cur) > 0 {
+		if len(cur) > 0 && t.Line != lastLine && depth == 0 && !joins(cur[len(cur)-1], t) {
 			lines = append(lines, cur)
 			cur = nil
 		}
 		lastLine = t.Line
 		cur = append(cur, t)
+		switch t.Type {
+		case lexer.LPAREN, lexer.LBRACKET:
+			depth++
+		case lexer.RPAREN, lexer.RBRACKET:
+			if depth > 0 {
+				depth--
+			}
+		}
 	}
 	if len(cur) > 0 {
 		lines = append(lines, cur)
 	}
 	return lines
+}
+
+// joins reports whether a line break between prev and next is a continuation
+// of the same logical statement.
+func joins(prev, next lexer.Token) bool {
+	switch prev.Type {
+	case lexer.COMMA, lexer.DOT, lexer.OPERATOR:
+		return true
+	case lexer.KEYWORD:
+		switch prev.Literal {
+		case "and", "or", "not", "in", "over", "before", "after", "if", "else":
+			return true
+		}
+	}
+	switch next.Type {
+	case lexer.COMMA, lexer.DOT, lexer.OPERATOR, lexer.RPAREN, lexer.RBRACKET:
+		return true
+	case lexer.KEYWORD:
+		switch next.Literal {
+		case "and", "or", "in", "over", "nocase", "before", "after", "else":
+			return true
+		}
+	}
+	return false
 }
 
 // extractVariables builds the flattened variable index for a section. In the

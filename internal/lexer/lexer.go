@@ -3,9 +3,11 @@
 package lexer
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 )
+
 // Lexer scans a byte slice into Tokens.
 type Lexer struct {
 	src  []byte
@@ -14,7 +16,7 @@ type Lexer struct {
 	col  int
 	errs []Error
 
-	comments []Comment // captured side-channel, see Comment	
+	comments []Comment // captured side-channel, see Comment
 
 	// prevType/prevLit track the last emitted token so `/` can be
 	// disambiguated: after `=`, `!=`, `(`, `,` or a keyword it opens a regex
@@ -268,11 +270,14 @@ func (l *Lexer) skipSpaceAndComments() {
 			l.captureLineComment(2)
 
 		// `#` opens a count variable (#login) when followed by an identifier;
-		// followed by whitespace or end-of-line it is a line comment. This is
-		// what makes `# yl2lint-disable: <rule>` directives possible.
+		// followed by whitespace or end-of-line it is a line comment. The
+		// literal prefix `#yl2lint` is always a comment, so a directive typed
+		// without a space (#yl2lint-disable: ...) cannot silently become a
+		// count variable named "yl2lint".
 		case c == '#' && (l.pos+1 >= len(l.src) ||
 			l.src[l.pos+1] == ' ' || l.src[l.pos+1] == '\t' ||
-			l.src[l.pos+1] == '\r' || l.src[l.pos+1] == '\n'):
+			l.src[l.pos+1] == '\r' || l.src[l.pos+1] == '\n' ||
+			bytes.HasPrefix(l.src[l.pos:], []byte("#yl2lint"))):
 			l.captureLineComment(1)
 
 		case c == '/' && l.pos+1 < len(l.src) && l.src[l.pos+1] == '*':

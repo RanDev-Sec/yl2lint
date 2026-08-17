@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/fatih/color"
@@ -13,6 +14,7 @@ import (
 	"yl2lint/internal/linter/rules"
 	"yl2lint/internal/printer"
 	"yl2lint/internal/runner"
+	"yl2lint/internal/schema"
 )
 
 var (
@@ -42,6 +44,16 @@ func runLint(cmd *cobra.Command, args []string) error {
 	cfg, cfgFile, err := config.Load(flagConfig)
 	if err != nil {
 		return err
+	}
+
+	if cfg.Schema.Path != "" {
+		p := cfg.Schema.Path
+		if !filepath.IsAbs(p) && cfgFile != "" {
+			p = filepath.Join(filepath.Dir(cfgFile), p)
+		}
+		if err := schema.LoadExtra(p, cfg.Schema.Replace); err != nil {
+			return err
+		}
 	}
 
 	if flagFix || flagInteractive {

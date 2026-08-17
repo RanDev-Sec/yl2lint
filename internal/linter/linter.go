@@ -78,6 +78,13 @@ type Rule interface {
 	Check(f *ast.File, cfg *config.Config) []Violation
 }
 
+// DirectiveRuleID / DirectiveRuleName identify info-level findings about
+// suppression comments themselves (malformed directives, unknown rule names).
+const (
+	DirectiveRuleID   = "YL000"
+	DirectiveRuleName = "suppression-directive"
+)
+
 // SyntaxRuleID / SyntaxRuleName identify violations synthesised from parser
 // errors. Syntax checking runs on parser output rather than the AST, so it
 // lives in the engine instead of a Rule implementation.
@@ -90,12 +97,13 @@ const (
 type Engine struct {
 	cfg   *config.Config
 	rules []Rule
+	all   []Rule // including disabled: used to validate directive rule names
 }
 
 // NewEngine builds an engine from a config and a rule set, dropping any rule
 // disabled in the config.
 func NewEngine(cfg *config.Config, ruleSet []Rule) *Engine {
-	e := &Engine{cfg: cfg}
+	e := &Engine{cfg: cfg, all: ruleSet}
 	for _, r := range ruleSet {
 		if !cfg.IsDisabled(r.ID(), r.Name()) {
 			e.rules = append(e.rules, r)
@@ -136,6 +144,8 @@ func (e *Engine) LintSource(path string, src []byte) []Violation {
 			vs = append(vs, v)
 		}
 	}
+
+	vs = append(vs, directiveDiagnostics(file, e.knownRuleKeys())...)
 
 	// Honour inline `yl2lint-disable` suppression comments.
 	if sup := buildSuppressions(file); len(sup) > 0 {

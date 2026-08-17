@@ -7,9 +7,9 @@
 package linter
 
 import (
+	"fmt"
 	"sort"
 	"strings"
-
 	"yl2lint/internal/ast"
 	"yl2lint/internal/lexer"
 )
@@ -165,4 +165,56 @@ func targetSpan(as []anchor, c lexer.Comment) (lineSpan, bool) {
 		}
 	}
 	return lineSpan{}, false
+}
+
+// knownRuleKeys returns every lowercase ID and name a directive may
+// legitimately reference, including disabled rules and the engine-level
+// pseudo-rules.
+func (e *Engine) knownRuleKeys() map[string]bool {
+	known := map[string]bool{
+		strings.ToLower(SyntaxRuleID):      true,
+		strings.ToLower(SyntaxRuleName):    true,
+		strings.ToLower(DirectiveRuleID):   true,
+		strings.ToLower(DirectiveRuleName): true,
+	}
+	for _, r := range e.all {
+		known[strings.ToLower(r.ID())] = true
+		known[strings.ToLower(r.Name())] = true
+	}
+	return known
+}
+
+// directiveDiagnostics reports info-level findings for comments that look
+// like suppression directives but will not do what the author intended:
+// misspelled directives and references to rules that do not exist. Silent
+// directive loss is the worst failure mode, so it is surfaced explicitly.
+func directiveDiagnostics(f *ast.File, known map[string]bool) []Violation {
+	var vs []Violation
+	report := func(c lexer.Comment, format string, args ...any) {
+		vs = append(vs, Violation{
+			RuleID: DirectiveRuleID, RuleName: DirectiveRuleName,
+			Pos:      ast.Position{Line: c.Line, Column: c.Column},
+			Severity: Info,
+			Message:  fmt.Sprintf(format, args...),
+		})
+	}
+
+	for _, c := range f.Comments {
+		text := strings.TrimSpace(c.Text)
+		names, ok := parseDisable(text)
+		if !ok {
+			// "yl2lint disable", "yl2lint-disble", etc.: intended but broken.
+			if strings.HasPrefix(strings.ToLower(text), "yl2lint") {
+				report(c, "comment %q looks like a suppression directive but is malformed; use `yl2lint-disable: <rule>[, <rule>...]`", text)
+			}
+			continue
+		}
+		for _, n := range names {
+			if n == "*" || known[n] {
+				continue
+			}
+			report(c, "suppression directive references unknown rule %q; it will have no effect", n)
+		}
+	}
+	return vs
 }

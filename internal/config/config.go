@@ -22,6 +22,11 @@ type Config struct {
 	// Meta configures the meta-required-keys (YL002) policy.
 	Meta MetaConfig `yaml:"meta"`
 
+	// Schema optionally points at a user-supplied UDM field dictionary for
+	// the udm-schema rule. Path is resolved relative to the config file's
+	// directory when loaded via a config file.
+	Schema SchemaConfig `yaml:"schema"`
+
 	// DisabledRules lists rule names or IDs to skip entirely,
 	// e.g. ["variable-lifecycle"] or ["YL003"]. Case-insensitive.
 	DisabledRules []string `yaml:"disabled_rules"`
@@ -35,6 +40,16 @@ type Config struct {
 type MetaConfig struct {
 	// RequiredKeys must all be present in every rule's meta block.
 	RequiredKeys []string `yaml:"required_keys"`
+}
+
+// SchemaConfig configures the UDM dictionary used by the udm-schema rule.
+type SchemaConfig struct {
+	// Path is a YAML file in the same format as the embedded dictionary
+	// (fields: [{path, type, repeated}], prefixes: [...]).
+	Path string `yaml:"path"`
+	// Replace substitutes the file for the embedded dictionary entirely
+	// instead of merging on top of it.
+	Replace bool `yaml:"replace"`
 }
 
 // Default returns the configuration used when no .yl2lint.yaml exists.
