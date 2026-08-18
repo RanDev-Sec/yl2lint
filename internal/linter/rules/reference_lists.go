@@ -12,7 +12,7 @@ import (
 
 // defaultListNaming is the naming convention applied when the config does
 // not override reference_lists.naming.
-const defaultListNaming = `^[a-z][a-z0-9_]*$`
+const defaultListNaming = `^[A-Za-z][A-Za-z0-9_]*$`
 
 // ReferenceLists (YL013) validates %reference_list usage: names must match
 // the configured naming convention, and when the config supplies a `known`

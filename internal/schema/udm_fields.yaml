@@ -5,6 +5,13 @@ prefixes:
   - additional.fields
   - about.labels
   - metadata.tags
+  - extracted.fields
+  - principal.ip_geo_artifact
+  - target.ip_geo_artifact
+  - src.ip_geo_artifact
+  - extensions.auth
+  - target.resource.attribute
+  - principal.user.attribute
 
 fields:
   # metadata
@@ -109,3 +116,41 @@ fields:
   - {path: about.ip,          type: string, repeated: true}
   - {path: about.file.sha256, type: string, repeated: true}
   - {path: about.user.userid, type: string, repeated: true}
+
+  # application / domain
+  - {path: principal.application,            type: string}
+  - {path: src.application,                  type: string}
+  - {path: principal.administrative_domain,  type: string}
+  - {path: target.administrative_domain,     type: string}
+  - {path: principal.url,                    type: string}  
+  
+  # registry
+  - {path: target.registry.registry_key,        type: string}
+  - {path: target.registry.registry_value_name, type: string}
+  - {path: target.registry.registry_value_data, type: string}
+  - {path: principal.registry.registry_key,     type: string}  
+  
+  # file variants
+  - {path: principal.file.full_path,  type: string}
+  - {path: principal.file.sha256,     type: string}
+  - {path: principal.file.sha1,       type: string}
+  - {path: principal.file.md5,        type: string}
+  - {path: principal.file.size,       type: int}
+  - {path: principal.file.mime_type,  type: string}
+  - {path: target.file.sha1,          type: string}
+  - {path: target.file.mime_type,     type: string}
+  - {path: target.file.names,         type: string, repeated: true}
+  - {path: src.file.full_path,        type: string}
+  - {path: src.file.mime_type,        type: string}
+  - {path: src.process.file.full_path,                    type: string}
+  - {path: principal.process.file.sha1,                   type: string}
+  - {path: principal.process.parent_process.file.full_path, type: string}  
+  
+  # security_result additions (repeated message)
+  - {path: security_result.action_details,   type: string, repeated: true}
+  - {path: security_result.severity_details, type: string, repeated: true}  
+  
+  # resource / email
+  - {path: target.resource.id,                type: string}
+  - {path: target.resource.product_object_id, type: string}
+  - {path: network.email.mail_id,             type: string}

@@ -83,6 +83,17 @@ func Valid(path string) bool {
 	if _, ok := fields[path]; ok {
 		return true
 	}
+
+	// Timestamp fields expose .seconds and .nanos sub-fields
+	// (metadata.event_timestamp.seconds is a valid access).
+	for _, suf := range []string{".seconds", ".nanos"} {
+		if parent, ok := strings.CutSuffix(path, suf); ok {
+			if f, known := fields[parent]; known && f.Type == "timestamp" {
+				return true
+			}
+		}
+	}
+
 	for _, p := range prefixes {
 		if path == p || strings.HasPrefix(path, p+".") {
 			return true

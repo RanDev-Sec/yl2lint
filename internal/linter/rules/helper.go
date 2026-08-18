@@ -21,11 +21,14 @@ type stmtFieldRef struct {
 	VarName string
 	Path    string
 	Pos     ast.Position
-	Start   int // token index of the $var
-	End     int // token index of the last path segment
+	Start   int  // token index of the $var
+	End     int  // token index of the last path/index token
+	Indexed bool // path contains an explicit element index, e.g. security_result[1].rule_name
 }
 
 // fieldRefsIn scans one statement's tokens for event-variable field accesses.
+// Element indexes and map keys ([1], ["count"]) are skipped over, so the path
+// keeps going: security_result[1].rule_name -> "security_result.rule_name".
 func fieldRefsIn(toks []lexer.Token) []stmtFieldRef {
 	var refs []stmtFieldRef
 	for i := 0; i < len(toks); i++ {
@@ -36,10 +39,34 @@ func fieldRefsIn(toks []lexer.Token) []stmtFieldRef {
 			continue
 		}
 		path := toks[i+2].Literal
+		indexed := false
 		j := i + 3
-		for j+1 < len(toks) && toks[j].Type == lexer.DOT && toks[j+1].Type == lexer.IDENT {
-			path += "." + toks[j+1].Literal
-			j += 2
+		for j < len(toks) {
+			if toks[j].Type == lexer.LBRACKET {
+				depth := 1
+				k := j + 1
+				for k < len(toks) && depth > 0 {
+					switch toks[k].Type {
+					case lexer.LBRACKET:
+						depth++
+					case lexer.RBRACKET:
+						depth--
+					}
+					k++
+				}
+				if depth != 0 {
+					break // unbalanced; stop extending the path
+				}
+				indexed = true
+				j = k
+				continue
+			}
+			if j+1 < len(toks) && toks[j].Type == lexer.DOT && toks[j+1].Type == lexer.IDENT {
+				path += "." + toks[j+1].Literal
+				j += 2
+				continue
+			}
+			break
 		}
 		refs = append(refs, stmtFieldRef{
 			VarName: toks[i].Literal[1:],
@@ -47,6 +74,7 @@ func fieldRefsIn(toks []lexer.Token) []stmtFieldRef {
 			Pos:     ast.PositionOf(toks[i+2]),
 			Start:   i,
 			End:     j - 1,
+			Indexed: indexed,
 		})
 		i = j - 1
 	}

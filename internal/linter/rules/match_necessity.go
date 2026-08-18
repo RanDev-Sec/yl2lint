@@ -9,17 +9,15 @@ import (
 )
 
 // MatchNecessity (YL009) flags mismatches between the match: section and how
-// the rule actually uses events. Direction one: a match: window on a rule
+// the rule actually uses events. A match: window on a rule
 // with a single event variable is often only there to feed outcome
 // aggregates, and should be refactored to a cheaper single-event rule.
-// Direction two: aggregate functions without any match: section have no
-// event group to aggregate over.
 type MatchNecessity struct{}
 
 func (MatchNecessity) ID() string   { return "YL009" }
 func (MatchNecessity) Name() string { return "match-necessity" }
 func (MatchNecessity) Description() string {
-	return "flag match: windows on single-event rules (refactor candidates) and aggregate functions used without a match: section"
+	return "flag match: windows on single-event rules (refactor candidates)"
 }
 
 func (m MatchNecessity) Check(f *ast.File, cfg *config.Config) []linter.Violation {
@@ -34,25 +32,6 @@ func (m MatchNecessity) Check(f *ast.File, cfg *config.Config) []linter.Violatio
 	}
 
 	for _, r := range f.Rules {
-		var aggName string
-		var aggPos ast.Position
-		for _, sec := range []*ast.Section{r.Outcome, r.Condition} {
-			for _, c := range extractCalls(sec) {
-				if aggFns[c.Name] {
-					aggName, aggPos = c.Name, c.Pos
-					break
-				}
-			}
-			if aggName != "" {
-				break
-			}
-		}
-
-		if r.Match == nil && aggName != "" {
-			warn(aggPos,
-				"aggregate %s(...) is used but the rule has no match: section; aggregates only operate over events grouped by match:", aggName)
-		}
-
 		if r.Match != nil && len(sectionVarNames(r.Events)) == 1 {
 			warn(r.Match.Pos,
 				"rule %q uses a single event variable; if match: exists only to compute outcome values, refactor to a single-event rule by removing match: and the aggregate functions", r.Name)
