@@ -15,34 +15,53 @@ type fieldRef struct {
 	Pos     ast.Position
 }
 
-// extractFieldPaths scans a section's raw token statements for event-variable
-// field accesses.
+// stmtFieldRef is a fieldRef with its token span inside one statement, so
+// rules can inspect what immediately precedes or follows the reference.
+type stmtFieldRef struct {
+	VarName string
+	Path    string
+	Pos     ast.Position
+	Start   int // token index of the $var
+	End     int // token index of the last path segment
+}
+
+// fieldRefsIn scans one statement's tokens for event-variable field accesses.
+func fieldRefsIn(toks []lexer.Token) []stmtFieldRef {
+	var refs []stmtFieldRef
+	for i := 0; i < len(toks); i++ {
+		if toks[i].Type != lexer.EVENTVAR {
+			continue
+		}
+		if i+2 >= len(toks) || toks[i+1].Type != lexer.DOT || toks[i+2].Type != lexer.IDENT {
+			continue
+		}
+		path := toks[i+2].Literal
+		j := i + 3
+		for j+1 < len(toks) && toks[j].Type == lexer.DOT && toks[j+1].Type == lexer.IDENT {
+			path += "." + toks[j+1].Literal
+			j += 2
+		}
+		refs = append(refs, stmtFieldRef{
+			VarName: toks[i].Literal[1:],
+			Path:    path,
+			Pos:     ast.PositionOf(toks[i+2]),
+			Start:   i,
+			End:     j - 1,
+		})
+		i = j - 1
+	}
+	return refs
+}
+
+// extractFieldPaths flattens fieldRefsIn over a whole section.
 func extractFieldPaths(sec *ast.Section) []fieldRef {
 	if sec == nil {
 		return nil
 	}
 	var refs []fieldRef
 	for _, st := range sec.Statements {
-		toks := st.Tokens
-		for i := 0; i < len(toks); i++ {
-			if toks[i].Type != lexer.EVENTVAR {
-				continue
-			}
-			if i+2 >= len(toks) || toks[i+1].Type != lexer.DOT || toks[i+2].Type != lexer.IDENT {
-				continue
-			}
-			path := toks[i+2].Literal
-			j := i + 3
-			for j+1 < len(toks) && toks[j].Type == lexer.DOT && toks[j+1].Type == lexer.IDENT {
-				path += "." + toks[j+1].Literal
-				j += 2
-			}
-			refs = append(refs, fieldRef{
-				VarName: toks[i].Literal[1:],
-				Path:    path,
-				Pos:     ast.PositionOf(toks[i+2]),
-			})
-			i = j - 1
+		for _, r := range fieldRefsIn(st.Tokens) {
+			refs = append(refs, fieldRef{VarName: r.VarName, Path: r.Path, Pos: r.Pos})
 		}
 	}
 	return refs
@@ -57,32 +76,38 @@ type call struct {
 	Args [][]lexer.Token
 }
 
-// extractCalls finds `name(...)` and `ns.name(...)` invocations in a section.
+// callsIn finds `name(...)` and `ns.name(...)` invocations in one statement.
+func callsIn(toks []lexer.Token) []call {
+	var out []call
+	for i := 0; i < len(toks); i++ {
+		if toks[i].Type != lexer.IDENT && toks[i].Type != lexer.KEYWORD {
+			continue
+		}
+		name := toks[i].Literal
+		pos := ast.PositionOf(toks[i])
+		j := i + 1
+		for j+1 < len(toks) && toks[j].Type == lexer.DOT && toks[j+1].Type == lexer.IDENT {
+			name += "." + toks[j+1].Literal
+			j += 2
+		}
+		if j >= len(toks) || toks[j].Type != lexer.LPAREN {
+			continue
+		}
+		args, end := splitArgs(toks, j)
+		out = append(out, call{Name: name, Pos: pos, Args: args})
+		i = end
+	}
+	return out
+}
+
+// extractCalls flattens callsIn over a whole section.
 func extractCalls(sec *ast.Section) []call {
 	if sec == nil {
 		return nil
 	}
 	var out []call
 	for _, st := range sec.Statements {
-		toks := st.Tokens
-		for i := 0; i < len(toks); i++ {
-			if toks[i].Type != lexer.IDENT && toks[i].Type != lexer.KEYWORD {
-				continue
-			}
-			name := toks[i].Literal
-			pos := ast.PositionOf(toks[i])
-			j := i + 1
-			for j+1 < len(toks) && toks[j].Type == lexer.DOT && toks[j+1].Type == lexer.IDENT {
-				name += "." + toks[j+1].Literal
-				j += 2
-			}
-			if j >= len(toks) || toks[j].Type != lexer.LPAREN {
-				continue
-			}
-			args, end := splitArgs(toks, j)
-			out = append(out, call{Name: name, Pos: pos, Args: args})
-			i = end
-		}
+		out = append(out, callsIn(st.Tokens)...)
 	}
 	return out
 }
@@ -143,6 +168,16 @@ func unquotePattern(lit string) string {
 		return s
 	}
 	return lit
+}
+
+// soleFieldRef reports whether arg is exactly one field reference spanning
+// the entire argument (no surrounding expression).
+func soleFieldRef(arg []lexer.Token) (stmtFieldRef, bool) {
+	refs := fieldRefsIn(arg)
+	if len(refs) == 1 && refs[0].Start == 0 && refs[0].End == len(arg)-1 {
+		return refs[0], true
+	}
+	return stmtFieldRef{}, false
 }
 
 // parseWindow converts a match-window duration literal (30s, 15m, 24h, 14d)

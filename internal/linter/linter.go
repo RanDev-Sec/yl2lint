@@ -93,6 +93,14 @@ const (
 	SyntaxRuleName = "syntax"
 )
 
+// WorkspaceDupRuleID / WorkspaceDupRuleName identify the cross-file
+// duplicate-rule-name check, which runs in the workspace pass rather than as
+// a per-file Rule.
+const (
+	WorkspaceDupRuleID   = "YL014"
+	WorkspaceDupRuleName = "duplicate-rule-name"
+)
+
 // Engine runs registered rules over parsed files.
 type Engine struct {
 	cfg   *config.Config
@@ -115,14 +123,20 @@ func NewEngine(cfg *config.Config, ruleSet []Rule) *Engine {
 // Rules returns the active (non-disabled) rules.
 func (e *Engine) Rules() []Rule { return e.rules }
 
-// LintSource parses src and returns every violation for it, sorted by
-// position. Parse errors become YL001 violations; AST rules then run on
-// whatever tree was recovered, so one syntax slip still yields meta and
-// lifecycle findings for the rest of the file.
+// Config returns the engine's configuration (used by workspace checks).
+func (e *Engine) Config() *config.Config { return e.cfg }
+
+// LintSource parses src and lints the result. Kept for single-shot callers;
+// the runner parses once and calls LintParsed directly.
 func (e *Engine) LintSource(path string, src []byte) []Violation {
 	file, parseErrs := parser.Parse(src)
 	file.Path = path
+	return e.LintParsed(path, file, parseErrs)
+}
 
+// LintParsed runs syntax reporting, every registered rule, directive
+// diagnostics, and suppression filtering over an already-parsed file.
+func (e *Engine) LintParsed(path string, file *ast.File, parseErrs []parser.ParseError) []Violation {
 	var vs []Violation
 	if !e.cfg.IsDisabled(SyntaxRuleID, SyntaxRuleName) {
 		sev := SeverityFor(e.cfg, SyntaxRuleID, SyntaxRuleName, Error)
@@ -146,18 +160,30 @@ func (e *Engine) LintSource(path string, src []byte) []Violation {
 	}
 
 	vs = append(vs, directiveDiagnostics(file, e.knownRuleKeys())...)
+	vs = ApplySuppressions(file, vs)
+	SortViolations(vs)
+	return vs
+}
 
-	// Honour inline `yl2lint-disable` suppression comments.
-	if sup := buildSuppressions(file); len(sup) > 0 {
-		kept := vs[:0]
-		for _, v := range vs {
-			if !sup.covers(v) {
-				kept = append(kept, v)
-			}
-		}
-		vs = kept
+// ApplySuppressions drops violations covered by the file's inline
+// yl2lint-disable directives. Exported so workspace-level violations can be
+// filtered through the same mechanism.
+func ApplySuppressions(file *ast.File, vs []Violation) []Violation {
+	sup := buildSuppressions(file)
+	if len(sup) == 0 {
+		return vs
 	}
+	kept := vs[:0]
+	for _, v := range vs {
+		if !sup.covers(v) {
+			kept = append(kept, v)
+		}
+	}
+	return kept
+}
 
+// SortViolations orders violations by line, column, then rule ID.
+func SortViolations(vs []Violation) {
 	sort.SliceStable(vs, func(i, j int) bool {
 		if vs[i].Pos.Line != vs[j].Pos.Line {
 			return vs[i].Pos.Line < vs[j].Pos.Line
@@ -167,5 +193,4 @@ func (e *Engine) LintSource(path string, src []byte) []Violation {
 		}
 		return vs[i].RuleID < vs[j].RuleID
 	})
-	return vs
 }

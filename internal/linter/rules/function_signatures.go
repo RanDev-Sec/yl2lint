@@ -16,21 +16,31 @@ type fnSig struct {
 }
 
 var fnSigs = map[string]fnSig{
-	"re.regex":             {2, 2},
-	"net.ip_in_range_cidr": {2, 2},
-	"strings.coalesce":     {2, -1},
-	"math.abs":             {1, 1},
+	"re.regex":                  {2, 2},
+	"re.capture":                {2, 2},
+	"net.ip_in_range_cidr":      {2, 2},
+	"strings.coalesce":          {2, -1},
+	"strings.concat":            {2, -1},
+	"strings.to_lower":          {1, 1},
+	"strings.to_upper":          {1, 1},
+	"math.abs":                  {1, 1},
+	"math.round":                {1, 2},
+	"arrays.contains":           {2, 2},
+	"timestamp.get_day_of_week": {1, 2},
+	"timestamp.get_hour":        {1, 2},
+	"timestamp.get_date":        {1, 2},
+	"timestamp.current_seconds": {0, 0},
 }
 
 // FunctionAndOperator (YL006) type-checks built-in YARA-L function calls:
-// argument counts, literal argument types, RE2 validity of re.regex patterns
+// argument counts, literal argument types, RE2 validity of regex patterns
 // (Go's regexp package is RE2, exactly like Chronicle), and CIDR validity.
 type FunctionAndOperator struct{}
 
 func (FunctionAndOperator) ID() string   { return "YL006" }
 func (FunctionAndOperator) Name() string { return "function-signature" }
 func (FunctionAndOperator) Description() string {
-	return "built-in function calls must have valid argument counts/types; re.regex patterns must compile under RE2; CIDR literals must parse"
+	return "built-in function calls must have valid argument counts/types; regex patterns must compile under RE2; CIDR literals must parse"
 }
 
 func (fn FunctionAndOperator) Check(f *ast.File, cfg *config.Config) []linter.Violation {
@@ -58,45 +68,55 @@ func (fn FunctionAndOperator) Check(f *ast.File, cfg *config.Config) []linter.Vi
 					report(c.Pos, "%s expects at least %d arguments, got %d", c.Name, sig.min, got)
 					continue
 				case sig.max != -1 && (got < sig.min || got > sig.max):
-					report(c.Pos, "%s expects exactly %d argument(s), got %d", c.Name, sig.min, got)
+					if sig.min == sig.max {
+						report(c.Pos, "%s expects exactly %d argument(s), got %d", c.Name, sig.min, got)
+					} else {
+						report(c.Pos, "%s expects %d to %d arguments, got %d", c.Name, sig.min, sig.max, got)
+					}
 					continue
 				}
 
 				switch c.Name {
-				case "re.regex":
-					pat := c.Args[1]
-					switch {
-					case len(pat) == 1 && pat[0].Type == lexer.STRING:
-						p := unquotePattern(pat[0].Literal)
-						if _, err := regexp.Compile(p); err != nil {
-							report(ast.PositionOf(pat[0]), "re.regex: invalid RE2 pattern %q: %v", p, err)
-						}
-					case len(pat) == 1 && pat[0].Type == lexer.REGEX:
-						if _, err := regexp.Compile(pat[0].Literal); err != nil {
-							report(ast.PositionOf(pat[0]), "re.regex: invalid RE2 pattern /%s/: %v", pat[0].Literal, err)
-						}
-					default:
-						report(c.Pos, "re.regex: second argument must be a string literal regex pattern")
-					}
+				case "re.regex", "re.capture":
+					checkPatternArg(c, 1, report)
 
 				case "net.ip_in_range_cidr":
 					cidr := c.Args[1]
 					if len(cidr) == 1 && cidr[0].Type == lexer.STRING {
 						if _, _, err := net.ParseCIDR(cidr[0].Literal); err != nil {
-							report(ast.PositionOf(cidr[0]), "net.ip_in_range_cidr: invalid CIDR %q: %v", cidr[0].Literal, err)
+							report(ast.PositionOf(cidr[0]), "%s: invalid CIDR %q: %v", c.Name, cidr[0].Literal, err)
 						}
 					} else {
-						report(c.Pos, "net.ip_in_range_cidr: second argument must be a string CIDR literal (e.g. \"10.0.0.0/8\")")
+						report(c.Pos, "%s: second argument must be a string CIDR literal (e.g. \"10.0.0.0/8\")", c.Name)
 					}
 
-				case "math.abs":
+				case "math.abs", "math.round":
 					arg := c.Args[0]
 					if len(arg) == 1 && arg[0].Type == lexer.STRING {
-						report(ast.PositionOf(arg[0]), "math.abs: argument must be numeric, got a string literal")
+						report(ast.PositionOf(arg[0]), "%s: first argument must be numeric, got a string literal", c.Name)
 					}
 				}
 			}
 		}
 	}
 	return vs
+}
+
+// checkPatternArg validates that argument idx of a call is a string-literal
+// regex pattern that compiles under RE2.
+func checkPatternArg(c call, idx int, report func(ast.Position, string, ...any)) {
+	pat := c.Args[idx]
+	switch {
+	case len(pat) == 1 && pat[0].Type == lexer.STRING:
+		p := unquotePattern(pat[0].Literal)
+		if _, err := regexp.Compile(p); err != nil {
+			report(ast.PositionOf(pat[0]), "%s: invalid RE2 pattern %q: %v", c.Name, p, err)
+		}
+	case len(pat) == 1 && pat[0].Type == lexer.REGEX:
+		if _, err := regexp.Compile(pat[0].Literal); err != nil {
+			report(ast.PositionOf(pat[0]), "%s: invalid RE2 pattern /%s/: %v", c.Name, pat[0].Literal, err)
+		}
+	default:
+		report(c.Pos, "%s: argument %d must be a string literal regex pattern", c.Name, idx+1)
+	}
 }

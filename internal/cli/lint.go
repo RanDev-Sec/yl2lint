@@ -102,6 +102,8 @@ var rulesCmd = &cobra.Command{
 
 		fmt.Printf("%s  %s  %s\n", id.Sprint(linter.SyntaxRuleID), name.Sprint("syntax"),
 			"structural validation performed by the parser (brackets, section headers, meta grammar)")
+		fmt.Printf("%s  %s  %s\n", id.Sprint(linter.WorkspaceDupRuleID), name.Sprint(linter.WorkspaceDupRuleName),
+			"cross-file check: rule names must be unique across the lint target (runs in the workspace pass)")
 		for _, r := range linter.NewEngine(cfg, rules.All()).Rules() {
 			fmt.Printf("%s  %s  %s\n", id.Sprint(r.ID()), name.Sprint(r.Name()), r.Description())
 		}

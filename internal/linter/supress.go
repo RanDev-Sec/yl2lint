@@ -172,10 +172,12 @@ func targetSpan(as []anchor, c lexer.Comment) (lineSpan, bool) {
 // pseudo-rules.
 func (e *Engine) knownRuleKeys() map[string]bool {
 	known := map[string]bool{
-		strings.ToLower(SyntaxRuleID):      true,
-		strings.ToLower(SyntaxRuleName):    true,
-		strings.ToLower(DirectiveRuleID):   true,
-		strings.ToLower(DirectiveRuleName): true,
+		strings.ToLower(SyntaxRuleID):         true,
+		strings.ToLower(SyntaxRuleName):       true,
+		strings.ToLower(DirectiveRuleID):      true,
+		strings.ToLower(DirectiveRuleName):    true,
+		strings.ToLower(WorkspaceDupRuleID):   true,
+		strings.ToLower(WorkspaceDupRuleName): true,
 	}
 	for _, r := range e.all {
 		known[strings.ToLower(r.ID())] = true

@@ -27,6 +27,9 @@ type Config struct {
 	// directory when loaded via a config file.
 	Schema SchemaConfig `yaml:"schema"`
 
+	// ReferenceLists configures the reference-lists (YL013) rule.
+	ReferenceLists ReferenceListsConfig `yaml:"reference_lists"`
+
 	// DisabledRules lists rule names or IDs to skip entirely,
 	// e.g. ["variable-lifecycle"] or ["YL003"]. Case-insensitive.
 	DisabledRules []string `yaml:"disabled_rules"`
@@ -40,6 +43,12 @@ type Config struct {
 type MetaConfig struct {
 	// RequiredKeys must all be present in every rule's meta block.
 	RequiredKeys []string `yaml:"required_keys"`
+
+	// AllowedValues restricts specific meta keys to an enumerated value set,
+	// matched case-insensitively. Example:
+	//   allowed_values:
+	//     severity: [INFORMATIONAL, LOW, MEDIUM, HIGH, CRITICAL]
+	AllowedValues map[string][]string `yaml:"allowed_values"`
 }
 
 // SchemaConfig configures the UDM dictionary used by the udm-schema rule.
@@ -52,11 +61,26 @@ type SchemaConfig struct {
 	Replace bool `yaml:"replace"`
 }
 
+// ReferenceListsConfig validates %reference_list usage. Existence cannot be
+// verified without a Chronicle connection, so `known` is an explicit
+// allowlist maintained alongside the rules; API-backed validation is an
+// explicit non-goal.
+type ReferenceListsConfig struct {
+	// Naming is a regex every list name must match (default: ^[a-z][a-z0-9_]*$).
+	Naming string `yaml:"naming"`
+	// Known, when non-empty, is the complete set of list names that exist in
+	// the workspace; any %list outside it is flagged.
+	Known []string `yaml:"known"`
+}
+
 // Default returns the configuration used when no .yl2lint.yaml exists.
 func Default() *Config {
 	return &Config{
 		Meta: MetaConfig{
 			RequiredKeys: []string{"author", "description", "severity"},
+			AllowedValues: map[string][]string{
+				"severity": {"INFORMATIONAL", "LOW", "MEDIUM", "HIGH", "CRITICAL"},
+			},
 		},
 	}
 }

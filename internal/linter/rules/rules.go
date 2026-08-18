@@ -10,5 +10,15 @@ func All() []linter.Rule {
 	return []linter.Rule{
 		MetaRequiredKeys{},
 		VariableLifecycle{},
+		UDMSchema{},
+		TemporalAndAggregation{},
+		FunctionAndOperator{},
+		PerformanceAntiPattern{},
+		ZeroValueJoin{},
+		MatchNecessity{},
+		RepeatedFields{},
+		MetaValues{},
+		TypeCheck{},
+		ReferenceLists{},
 	}
 }

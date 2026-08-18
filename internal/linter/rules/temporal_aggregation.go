@@ -37,6 +37,8 @@ func (t TemporalAndAggregation) Check(f *ast.File, cfg *config.Config) []linter.
 
 	var vs []linter.Violation
 	for _, r := range f.Rules {
+		declaredEvents := sectionVarNames(r.Events)
+
 		// 1. Temporal window: `match: $x over 15m`.
 		if r.Match != nil {
 			for _, st := range r.Match.Statements {
@@ -61,12 +63,34 @@ func (t TemporalAndAggregation) Check(f *ast.File, cfg *config.Config) []linter.
 							Message: fmt.Sprintf("match window %s exceeds the recommended 14d maximum; long windows are rejected or heavily throttled by Chronicle", n.Literal),
 						})
 					}
+
+					// Sliding window: `over <dur> before|after $pivot`.
+					if i+2 < len(st.Tokens) {
+						kw := st.Tokens[i+2]
+						if kw.Type == lexer.KEYWORD && (kw.Literal == "before" || kw.Literal == "after") {
+							errSev := linter.SeverityFor(cfg, t.ID(), t.Name(), linter.Error)
+							if i+3 >= len(st.Tokens) || st.Tokens[i+3].Type != lexer.EVENTVAR {
+								vs = append(vs, linter.Violation{
+									RuleID: t.ID(), RuleName: t.Name(), Pos: ast.PositionOf(kw), Severity: errSev,
+									Message: fmt.Sprintf("sliding window: expected a pivot event variable after %q", kw.Literal),
+								})
+							} else if pivot := st.Tokens[i+3]; !declaredEvents[pivot.Literal[1:]] {
+								vs = append(vs, linter.Violation{
+									RuleID: t.ID(), RuleName: t.Name(), Pos: ast.PositionOf(pivot), Severity: errSev,
+									Message: fmt.Sprintf("sliding window pivot %s is not declared in events:", pivot.Literal),
+								})
+							}
+						}
+					}
 				}
 			}
 		}
 
 		// 2. Aggregation arguments must exist in events: or match:.
-		declared := sectionVarNames(r.Events)
+		declared := map[string]bool{}
+		for n := range declaredEvents {
+			declared[n] = true
+		}
 		for name := range sectionVarNames(r.Match) {
 			declared[name] = true
 		}
