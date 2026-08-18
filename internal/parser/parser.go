@@ -328,8 +328,8 @@ func joins(prev, next lexer.Token) bool {
 }
 
 // extractVariables builds the flattened variable index for a section. In the
-// outcome section, `$var` at the start of a statement followed by `=` is an
-// outcome-variable definition rather than a use of an event variable.
+// events and outcome sections, `$var` at the start of a statement followed by `=` is a
+// variable definition rather than a use of an event variable.
 func extractVariables(section string, stmts []ast.Statement) []ast.VariableRef {
 	var refs []ast.VariableRef
 	for _, st := range stmts {
@@ -341,11 +341,26 @@ func extractVariables(section string, stmts []ast.Statement) []ast.VariableRef {
 			if t.Type == lexer.COUNTVAR {
 				kind = ast.CountVar
 			}
-			isDef := section == "outcome" &&
-				kind == ast.EventVar &&
-				i == 0 &&
-				len(st.Tokens) > 1 &&
-				st.Tokens[1].Type == lexer.OPERATOR && st.Tokens[1].Literal == "="
+
+			isDef := false
+			if kind == ast.EventVar {
+				// LHS assignment: `$x = ...` at statement start. In outcome
+				// these are outcome variables; in events they are computed
+				// placeholders ($sev = re.regex(...)).
+				lhs := (section == "outcome" || section == "events") &&
+					i == 0 && len(st.Tokens) > 1 &&
+					st.Tokens[1].Type == lexer.OPERATOR && st.Tokens[1].Literal == "="
+
+				// RHS binding: `<field ref> = $x` in events, where $x is bare
+				// (not followed by a dot) — the placeholder-binding pattern.
+				// A dotted RHS ($e2.field) is a cross-event join, not a binding.
+				bare := i+1 >= len(st.Tokens) || st.Tokens[i+1].Type != lexer.DOT
+				rhs := section == "events" && bare && i > 0 &&
+					st.Tokens[i-1].Type == lexer.OPERATOR && st.Tokens[i-1].Literal == "="
+
+				isDef = lhs || rhs
+			}
+
 			refs = append(refs, ast.VariableRef{
 				Name:         t.Literal[1:],
 				Text:         t.Literal,

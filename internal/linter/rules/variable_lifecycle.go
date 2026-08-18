@@ -74,20 +74,54 @@ func (vl VariableLifecycle) checkRule(r *ast.YaraLRule, sev linter.Severity) []l
 
 	var vs []linter.Violation
 
-	// Check 1: declared in events but never evaluated anywhere.
+	// Check 1: per-variable triage over the events section. A variable with
+	// binding/definition occurrences AND plain references was bound and
+	// consumed inside events itself (placeholder filter pattern) — fine even
+	// if never referenced later. A variable with only definitions and no use
+	// anywhere is a dead placeholder — legal in Chronicle, so a warning. A
+	// variable with only plain references and no later use is the original
+	// error: an event variable that is never evaluated.
 	if r.Events != nil {
-		reported := map[string]bool{}
+		type eventsInfo struct {
+			defs, plain int
+			firstPos    ast.Position
+		}
+		info := map[string]*eventsInfo{}
 		for _, ref := range r.Events.Variables {
-			if used[ref.Name] || reported[ref.Name] {
+			ei := info[ref.Name]
+			if ei == nil {
+				ei = &eventsInfo{firstPos: ref.Pos}
+				info[ref.Name] = ei
+			}
+			if ref.IsDefinition {
+				ei.defs++
+			} else {
+				ei.plain++
+			}
+		}
+		for name, ei := range info {
+			if used[name] {
 				continue
 			}
-			reported[ref.Name] = true
-			vs = append(vs, linter.Violation{
-				RuleID: vl.ID(), RuleName: vl.Name(), Pos: ref.Pos, Severity: sev,
-				Message: fmt.Sprintf(
-					"event variable $%s is declared in the events block but never evaluated in match, condition, or outcome",
-					ref.Name),
-			})
+			switch {
+			case ei.defs > 0 && ei.plain > 0:
+				// Bound and consumed within events: nothing to report.
+			case ei.defs > 0:
+				vs = append(vs, linter.Violation{
+					RuleID: vl.ID(), RuleName: vl.Name(), Pos: ei.firstPos,
+					Severity: linter.Warning,
+					Message: fmt.Sprintf(
+						"placeholder $%s is assigned in the events block but never used; remove it or reference it in outcome",
+						name),
+				})
+			default:
+				vs = append(vs, linter.Violation{
+					RuleID: vl.ID(), RuleName: vl.Name(), Pos: ei.firstPos, Severity: sev,
+					Message: fmt.Sprintf(
+						"event variable $%s is declared in the events block but never evaluated in match, condition, or outcome",
+						name),
+				})
+			}
 		}
 	}
 
