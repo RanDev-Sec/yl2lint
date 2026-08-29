@@ -1,0 +1,20 @@
+// YL012:
+//   target.file.size is int, compared against a string literal
+//   principal.hostname is string, passed to a numeric function
+// The enum range comparison on metadata.event_type is idiomatic Chronicle
+// (enums carry ordinals) and must NOT be flagged.
+rule yl012_type_check {
+  meta:
+    author = "test"
+    description = "Literal and argument type mismatches"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type >= 16000
+    $e.metadata.event_type < 17000
+    $e.target.file.size = "1024"
+    math.abs($e.principal.hostname)
+
+  condition:
+    $e
+}

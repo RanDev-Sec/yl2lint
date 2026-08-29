@@ -1,0 +1,13 @@
+// YL011: severity value outside the configured enum.
+rule yl011_meta_values {
+  meta:
+    author = "test"
+    description = "Severity typo"
+    severity = "Highl"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+
+  condition:
+    $e
+}

@@ -1,3 +1,4 @@
+// internal/cli/lint.go
 package cli
 
 import (
@@ -5,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -20,6 +22,7 @@ import (
 var (
 	flagFix         bool
 	flagInteractive bool
+	flagFormat      string
 )
 
 func init() {
@@ -27,6 +30,8 @@ func init() {
 		"automatically inject missing required meta keys (from .yl2lint.yaml) with TODO placeholders and write the file")
 	lintCmd.Flags().BoolVar(&flagInteractive, "interactive", false,
 		"like --fix, but ask before adding each missing meta field")
+	lintCmd.Flags().StringVar(&flagFormat, "format", "full",
+		"output format: full (per-file listing), summary (counts by rule, then worst files), compact (one line per finding), json")
 }
 
 var lintCmd = &cobra.Command{
@@ -79,9 +84,35 @@ func runLint(cmd *cobra.Command, args []string) error {
 		faint.Fprintf(os.Stdout, "config: %s\n\n", cfgFile)
 	}
 
-	sum := printer.Print(os.Stdout, results)
-	if sum.Errors > 0 || sum.ReadFailures > 0 {
-		os.Exit(1)
+	switch flagFormat {
+	case "full":
+		printer.Print(os.Stdout, results)
+	case "summary":
+		printer.PrintSummary(os.Stdout, results)
+	case "compact":
+		printer.PrintCompact(os.Stdout, results)
+	case "json":
+		if err := printer.PrintJSON(os.Stdout, results); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unknown --format %q: want full, summary, compact, or json", flagFormat)
+	}
+
+	exitCode := 0
+	for _, res := range results {
+		if res.Err != nil {
+			exitCode = 2
+			continue
+		}
+		for _, v := range res.Violations {
+			if v.Severity == linter.Error {
+				exitCode = 1
+			}
+		}
+	}
+	if exitCode != 0 {
+		os.Exit(exitCode)
 	}
 	return nil
 }
@@ -100,12 +131,30 @@ var rulesCmd = &cobra.Command{
 		id := color.New(color.Bold)
 		name := color.New(color.FgCyan)
 
-		fmt.Printf("%s  %s  %s\n", id.Sprint(linter.SyntaxRuleID), name.Sprint("syntax"),
-			"structural validation performed by the parser (brackets, section headers, meta grammar)")
-		fmt.Printf("%s  %s  %s\n", id.Sprint(linter.WorkspaceDupRuleID), name.Sprint(linter.WorkspaceDupRuleName),
-			"cross-file check: rule names must be unique across the lint target (runs in the workspace pass)")
-		for _, r := range linter.NewEngine(cfg, rules.All()).Rules() {
-			fmt.Printf("%s  %s  %s\n", id.Sprint(r.ID()), name.Sprint(r.Name()), r.Description())
+		type ruleInfo struct{ id, name, desc string }
+		var infos []ruleInfo
+
+		for _, r := range []ruleInfo{
+			{linter.SyntaxRuleID, linter.SyntaxRuleName, "structural validity: braces, section headers, meta grammar, required sections"},
+			{linter.DirectiveRuleID, linter.DirectiveRuleName, "suppression directives that are malformed or name unknown rules"},
+			{linter.WorkspaceDupRuleID, linter.WorkspaceDupRuleName, "cross-file check: rule names must be unique across the lint target"},
+		} {
+			if !cfg.IsDisabled(r.id, r.name) {
+				infos = append(infos, r)
+			}
+		}
+
+		for _, r := range rules.All() {
+			if cfg.IsDisabled(r.ID(), r.Name()) {
+				continue
+			}
+			infos = append(infos, ruleInfo{r.ID(), r.Name(), r.Description()})
+		}
+
+		sort.Slice(infos, func(i, j int) bool { return infos[i].id < infos[j].id })
+
+		for _, ri := range infos {
+			fmt.Printf("%s  %s  %s\n", id.Sprint(ri.id), name.Sprint(ri.name), ri.desc)
 		}
 		return nil
 	},

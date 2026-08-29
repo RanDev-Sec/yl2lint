@@ -1,0 +1,14 @@
+// YL014, first definition. Sorted before b.yaral, so this one is the
+// winner and reports nothing.
+rule duplicated_name {
+  meta:
+    author = "test"
+    description = "First definition of a duplicated rule name"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+
+  condition:
+    $e
+}

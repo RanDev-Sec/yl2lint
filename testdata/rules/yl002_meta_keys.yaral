@@ -1,0 +1,12 @@
+// YL002: required key "severity" is absent.
+rule yl002_meta_keys {
+  meta:
+    author = "test"
+    description = "Missing a required meta key"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+
+  condition:
+    $e
+}

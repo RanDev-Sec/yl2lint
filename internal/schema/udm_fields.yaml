@@ -12,6 +12,13 @@ prefixes:
   - extensions.auth
   - target.resource.attribute
   - principal.user.attribute
+  - graph.metadata
+  - metadata.base_labels
+  - security_result.about.labels
+  - security_result.attack_details
+  - security_result.detection_fields
+  - target.resource.attribute
+  - principal.resource.attribute
 
 fields:
   # metadata
@@ -154,3 +161,50 @@ fields:
   - {path: target.resource.id,                type: string}
   - {path: target.resource.product_object_id, type: string}
   - {path: network.email.mail_id,             type: string}
+
+  # Noun leaves (canonicalization maps target./src./about./graph.entity. here)
+  - {path: principal.platform,                    type: enum}
+  - {path: principal.asset.asset_id,              type: string}
+  - {path: principal.administrative_domain,       type: string}
+  - {path: principal.group.group_display_name,    type: string}
+  - {path: principal.group.windows_sid,           type: string}
+  - {path: principal.group.email_addresses,       type: string, repeated: true}
+  - {path: principal.registry.registry_key,        type: string}
+  - {path: principal.registry.registry_value_name, type: string}
+  - {path: principal.registry.registry_value_data, type: string}
+  - {path: principal.resource.type,               type: enum}
+  - {path: principal.resource.id,                 type: string}
+  - {path: principal.cloud.project.name,          type: string}
+  - {path: principal.cloud.environment,           type: enum}
+  - {path: principal.artifact.ip,                 type: string}
+  - {path: principal.entity_type,                 type: enum}
+  - {path: principal.file.sha1,                   type: string}
+  - {path: principal.file.names,                  type: string, repeated: true}
+  - {path: principal.process.file.names,          type: string, repeated: true}
+  - {path: principal.process.file.sha1,           type: string}
+  - {path: principal.process.parent_process.file.names, type: string, repeated: true}
+  - {path: principal.process.product_specific_process_id, type: string}
+  - {path: principal.process.parent_process.product_specific_process_id, type: string}
+  - {path: principal.network.application_protocol, type: enum}
+  - {path: principal.network.direction,            type: enum}
+  - {path: principal.network.organization_name,    type: string}
+  - {path: principal.network.dns_domain,           type: string}
+  - {path: principal.user.attribute.roles.name,    type: string, repeated: true}
+  - {path: principal.creation_timestamp,           type: timestamp}
+
+  # security_result leaves
+  - {path: security_result.alert_state,         type: enum,   repeated: true}
+  - {path: security_result.confidence,          type: enum,   repeated: true}
+  - {path: security_result.rule_id,             type: string, repeated: true}
+  - {path: security_result.threat_name,         type: string, repeated: true}
+  - {path: security_result.url_back_to_product, type: string, repeated: true}
+  - {path: security_result.threat_feed_name,    type: string, repeated: true}
+
+  # graph / entity metadata (prefix covers most; these are typed for YL012)
+  - {path: graph.metadata.entity_type,        type: enum}
+  - {path: graph.metadata.creation_timestamp, type: timestamp}
+
+  # email + network
+  - {path: network.email.cc,      type: string, repeated: true}
+  - {path: network.email.bcc,     type: string, repeated: true}
+  - {path: network.dns_domain,    type: string}

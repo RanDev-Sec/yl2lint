@@ -1,0 +1,14 @@
+// YL014, second definition of the same rule name. This is the file that
+// gets the finding.
+rule duplicated_name {
+  meta:
+    author = "test"
+    description = "Second definition of a duplicated rule name"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGOUT"
+
+  condition:
+    $e
+}

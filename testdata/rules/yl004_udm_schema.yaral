@@ -1,0 +1,15 @@
+// YL004: field path absent from the UDM dictionary. Expect a "did you mean"
+// suggestion naming principal.user.userid.
+rule yl004_udm_schema {
+  meta:
+    author = "test"
+    description = "Typo in a UDM field path"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.principal.user.useridd = "root"
+
+  condition:
+    $e
+}

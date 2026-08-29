@@ -1,0 +1,17 @@
+// YL003, both tiers:
+//   $unused  - a real event variable never evaluated  -> error
+//   $dead    - a placeholder assigned and never read  -> warning
+rule yl003_lifecycle {
+  meta:
+    author = "test"
+    description = "Unused event variable and dead placeholder"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $unused.metadata.event_type = "FILE_OPEN"
+    $dead = re.regex($e.principal.hostname, "^web-")
+
+  condition:
+    $e
+}

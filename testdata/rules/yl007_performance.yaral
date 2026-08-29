@@ -1,0 +1,21 @@
+// YL007 (info severity by default):
+//   no metadata.event_type or metadata.log_type filter anywhere
+//   /^.*$/ matches every value, so the comparison filters nothing
+//   the OR chain exceeds max_or_terms and cannot be indexed away
+rule yl007_performance {
+  meta:
+    author = "test"
+    description = "No base filter, no-op regex, OR saturation"
+    severity = "LOW"
+
+  events:
+    $e.principal.hostname = /^.*$/
+    ($e.target.url = "a" or $e.target.url = "b" or $e.target.url = "c" or
+     $e.target.url = "d" or $e.target.url = "e" or $e.target.url = "f" or
+     $e.target.url = "g" or $e.target.url = "h" or $e.target.url = "i" or
+     $e.target.url = "j" or $e.target.url = "k" or $e.target.url = "l" or
+     $e.target.url = "m" or $e.target.url = "n")
+
+  condition:
+    $e
+}

@@ -1,0 +1,14 @@
+// YL001: misspelled section header. The parser reports the typo and repairs
+// it, so the semantic rules below still see a condition section.
+rule yl001_syntax {
+  meta:
+    author = "test"
+    description = "Header typo recovered by the parser"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+
+  conditon:
+    $e
+}

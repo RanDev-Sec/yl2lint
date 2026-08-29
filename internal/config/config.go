@@ -1,3 +1,4 @@
+// internal/config/config.go
 // Package config loads the .yl2lint.yaml policy file that customises linting
 // behaviour (required meta keys, disabled rules, severity overrides).
 package config
@@ -29,6 +30,9 @@ type Config struct {
 
 	// ReferenceLists configures the reference-lists (YL013) rule.
 	ReferenceLists ReferenceListsConfig `yaml:"reference_lists"`
+
+	// Performance tunes the performance (YL007) rule.
+	Performance PerformanceConfig `yaml:"performance"`
 
 	// DisabledRules lists rule names or IDs to skip entirely,
 	// e.g. ["variable-lifecycle"] or ["YL003"]. Case-insensitive.
@@ -71,6 +75,17 @@ type ReferenceListsConfig struct {
 	// Known, when non-empty, is the complete set of list names that exist in
 	// the workspace; any %list outside it is flagged.
 	Known []string `yaml:"known"`
+}
+
+// PerformanceConfig tunes YL007 thresholds.
+type PerformanceConfig struct {
+	// MaxOrTerms is the number of top-level OR alternatives in one events:
+	// statement above which the rule is flagged as scan-heavy. 0 uses the
+	// default (12); a negative value disables the check.
+	MaxOrTerms int `yaml:"max_or_terms"`
+	// MaxOrRatio is the share of events: statements that may be
+	// OR-dominated before the whole rule is flagged. 0 uses the default (0.8).
+	MaxOrRatio float64 `yaml:"max_or_ratio"`
 }
 
 // Default returns the configuration used when no .yl2lint.yaml exists.

@@ -1,0 +1,25 @@
+// YL005:
+//   over 30d           -> window beyond the 14d threshold (warning)
+//   count($e3...)      -> aggregate over a variable not in events or match (error)
+//   after $missing     -> sliding-window pivot not declared in events (error)
+rule yl005_temporal {
+  meta:
+    author = "test"
+    description = "Oversized window, undeclared aggregate, missing pivot"
+    severity = "LOW"
+
+  events:
+    $e1.metadata.event_type = "USER_LOGIN"
+    $e1.principal.hostname = $host
+    $e2.metadata.event_type = "USER_LOGOUT"
+    $e2.principal.hostname = $host
+
+  match:
+    $host over 30d after $missing
+
+  outcome:
+    $total = count($e3.metadata.id)
+
+  condition:
+    $e1 and $e2
+}

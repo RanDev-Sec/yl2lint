@@ -109,7 +109,8 @@ func literalMismatch(ftype string, lit lexer.Token) string {
 			return fmt.Sprintf("comparing it with string literal %q will not match numerically", lit.Literal)
 		}
 	case lexer.NUMBER:
-		if ftype == "string" || ftype == "enum" {
+		// Enums carry ordinals in Chronicle, so `metadata.event_type >= 16000` is idiomatic range matching.
+		if ftype == "string" {
 			return fmt.Sprintf("comparing it with numeric literal %s; use a quoted string", lit.Literal)
 		}
 	case lexer.REGEX:

@@ -1,0 +1,21 @@
+// Baseline: must produce zero findings. If a change makes this file fail,
+// the change has a false positive.
+rule clean_baseline {
+  meta:
+    author = "test"
+    description = "A rule that satisfies every check"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.security_result.action = "BLOCK"
+    $e.principal.hostname = /^web-[0-9]{2,4}$/ nocase
+    all $e.principal.ip != "10.0.0.1"
+    re.regex(
+      $e.target.url,
+      "login\\.php$"
+    )
+
+  condition:
+    $e
+}

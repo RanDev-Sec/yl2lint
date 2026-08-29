@@ -1,0 +1,22 @@
+// YL010:
+//   principal.ip != ...        -> repeated field, negated, unquantified. ANY
+//                                 element differing satisfies it, so the
+//                                 exclusion excludes nothing.
+//   all principal.hostname     -> quantifier applied to a scalar field.
+// The positive equality on security_result.action is the documented
+// implicit-any idiom and must NOT be flagged.
+rule yl010_repeated_fields {
+  meta:
+    author = "test"
+    description = "Repeated-field comparison mistakes"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.security_result.action = "BLOCK"
+    $e.principal.ip != "10.0.0.1"
+    all $e.principal.hostname = "web-01"
+
+  condition:
+    $e
+}

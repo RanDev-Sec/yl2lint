@@ -76,11 +76,39 @@ func LoadExtra(path string, replace bool) error {
 	return nil
 }
 
+// nounRoots are the entity roots that share the same Noun sub-schema. UDM
+// reuses one Noun message under each, so target.user.userid and
+// principal.user.userid are the same field shape under different roots.
+// Canonicalizing to "principal" lets one dictionary entry cover them all.
+var nounRoots = []string{
+	"security_result.about", "graph.entity", // longest-first: prefix overlap
+	"principal", "target", "src", "intermediary", "observer", "about",
+}
+
+// canonical rewrites a path into the form held in the dictionary: repeated
+// parent_process chains collapse (Chronicle allows arbitrary nesting), and
+// every noun root maps onto "principal".
+func canonical(path string) string {
+	for strings.Contains(path, "parent_process.parent_process.") {
+		path = strings.Replace(path, "parent_process.parent_process.", "parent_process.", 1)
+	}
+	for _, root := range nounRoots {
+		if rest, ok := strings.CutPrefix(path, root+"."); ok {
+			return "principal." + rest
+		}
+	}
+	return path
+}
+
 // Valid reports whether path is a known UDM field path.
 func Valid(path string) bool {
 	mu.RLock()
 	defer mu.RUnlock()
 	if _, ok := fields[path]; ok {
+		return true
+	}
+
+	if _, ok := fields[canonical(path)]; ok {
 		return true
 	}
 
@@ -107,6 +135,9 @@ func Lookup(path string) (Field, bool) {
 	mu.RLock()
 	defer mu.RUnlock()
 	f, ok := fields[path]
+	if !ok {
+		f, ok = fields[canonical(path)]
+	}
 	return f, ok
 }
 
@@ -129,8 +160,9 @@ func Nearest(path string) string {
 	mu.RLock()
 	defer mu.RUnlock()
 	best, bestDist := "", 4
+	cpath := canonical(path)
 	for p := range fields {
-		d := levenshtein(path, p)
+		d := levenshtein(cpath, p)
 		if d < bestDist || (d == bestDist && best != "" && p < best) {
 			best, bestDist = p, d
 		}

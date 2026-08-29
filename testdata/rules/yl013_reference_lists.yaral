@@ -1,0 +1,15 @@
+// YL013: list name starts with an underscore, which the default naming
+// convention ^[A-Za-z][A-Za-z0-9_]*$ rejects.
+rule yl013_reference_lists {
+  meta:
+    author = "test"
+    description = "Reference list naming"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    $e.principal.ip in cidr %_internal_ranges
+
+  condition:
+    $e
+}

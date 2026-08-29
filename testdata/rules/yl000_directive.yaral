@@ -1,0 +1,19 @@
+// YL000: directives that will not do what the author intended.
+rule yl000_directive {
+  meta:
+    author = "test"
+    description = "Malformed and unknown-rule suppression directives"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+
+    // yl2lint-disable: no-such-rule
+    $e.principal.hostname = "host"
+
+    // yl2lint-disble: udm-schema
+    $e.target.hostname = "other"
+
+  condition:
+    $e
+}

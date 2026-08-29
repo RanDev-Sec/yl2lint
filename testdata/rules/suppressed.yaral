@@ -1,0 +1,19 @@
+// Suppression must actually suppress. Every finding in this file is
+// silenced by a directive, so the file must lint clean.
+rule suppressed_findings {
+  meta:
+    author = "test"
+    description = "Directives at line, section and rule scope"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+
+    // yl2lint-disable: udm-schema
+    $e.principal.user.useridd = "root"
+
+    $e.principal.ip != "10.0.0.1"  // yl2lint-disable: repeated-fields
+
+  condition:
+    $e
+}

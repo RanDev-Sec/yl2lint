@@ -1,0 +1,16 @@
+// YL008: a cross-event join with no non-empty guard on either side. When
+// both events omit the field, "" = "" matches and the rule floods.
+rule yl008_zero_value_join {
+  meta:
+    author = "test"
+    description = "Unguarded cross-event field join"
+    severity = "LOW"
+
+  events:
+    $e1.metadata.event_type = "USER_LOGIN"
+    $e2.metadata.event_type = "USER_LOGOUT"
+    $e1.target.user.userid = $e2.principal.user.userid
+
+  condition:
+    $e1 and $e2
+}

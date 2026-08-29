@@ -1,0 +1,26 @@
+// YL006:
+//   unterminated group   -> pattern does not compile under RE2 (error)
+//   coalesce with 1 arg  -> below the minimum argument count (error)
+//   math.abs("12")       -> string literal where a number is required (error)
+//   bad CIDR             -> net.ParseCIDR rejects it (error)
+// The multi-line call also exercises logical-line grouping: without it the
+// signature check would silently see no call at all.
+rule yl006_functions {
+  meta:
+    author = "test"
+    description = "Invalid built-in function calls"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "NETWORK_CONNECTION"
+    re.regex(
+      $e.target.url,
+      "(unterminated"
+    )
+    strings.coalesce($e.target.hostname)
+    math.abs("12")
+    net.ip_in_range_cidr($e.principal.ip, "10.0.0.0/99")
+
+  condition:
+    $e
+}

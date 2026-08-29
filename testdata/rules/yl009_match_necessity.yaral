@@ -1,0 +1,22 @@
+// YL009: a match section on a rule with a single event variable. If match
+// exists only to feed the outcome aggregate, this should be a single-event
+// rule instead.
+rule yl009_match_necessity {
+  meta:
+    author = "test"
+    description = "Match window on a single-event rule"
+    severity = "LOW"
+
+  events:
+    $e.metadata.event_type = "USER_LOGIN"
+    $e.principal.hostname = $host
+
+  match:
+    $host over 10m
+
+  outcome:
+    $total = count($e.metadata.id)
+
+  condition:
+    $e
+}
